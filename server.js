@@ -1,42 +1,46 @@
 const express = require('express');
-const mysql = require('mysql');
-const cors = require('cors');
 require('dotenv').config();
+const cors = require('cors');
+const bodyParser  = require('body-parser')
+// for server to know the real path in fs
+const path = require('node:path');
+const multer  = require('multer');
 
-const connection = mysql.createConnection({
-    host: 'localhost',
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: 'api_pract'
-})
+const db_akcije = require('./helpers/db_akcije');
 
-const port = 3005;
 const app = express();
 app.use(express.json());
+app.use(bodyParser.urlencoded({extended: true}))
 app.use(cors());
+
+const upload = multer({ dest: './slike' })
 
 
 app.get('/api', (req, res) => {
-    connection.query("SELECT * FROM lokacija", (err, rows) => { 
-        res.send(rows);
-    })
+    db_akcije.lokacije(res);
 })
 
 app.get('/api/:id', (req, res) => {
-    connection.query(`SELECT * FROM lokacija WHERE id_lokacije= ${req.params.id}`, (err, rows) => { 
-        res.send(rows);
-    })
+    db_akcije.lokacija(req, res);
 })
 
 
-app.post('/api', (req,res) => {
-    connection.query(`INSERT INTO lokacija(ime,lokacija,tekst,slika,kratak_opis) VALUES('${req.body.ime}', '${req.body.lokacija}', '${req.body.tekst}',
-     '${req.body.slika}', '${req.body.kratak_opis}')`, (err, rows) => {
-        
-        res.sendStatus(200);
-        
-     })
-    })
+app.post('/api', upload.single('slika'), (req,res) => {
+    // fajl je dodat u request
+    // console.log(req.file)
+   db_akcije.sacuvajLokaciju(req, res);
+})
+
+app.post('/api/login', (req,res) => {
+    db_akcije.logovanje(req, res);
+})    
+
+app.get('/slike/:filename', (req, res) => {
+    const { filename } = req.params;
+    const dirname = path.resolve();
+    const fullfilepath = path.join(dirname, 'slike/' + filename);
+    return res.sendFile(fullfilepath);
+});
 
 
-app.listen(port);
+app.listen(process.env.PORT);
